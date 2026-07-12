@@ -1,0 +1,373 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: transparent; font-family: 'Inter', sans-serif; }
+  :root {
+    --bg: #12141B; --surface: #1B1E28; --surface-2: #232733;
+    --border: #2E323F; --text: #ECEDF1; --text-dim: #8A8F9C;
+    --amber: #E8A33D; --teal: #45C9B0; --red: #E8615A; --violet: #8B7FD9;
+    --radius: 8px;
+  }
+  input, select { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: 'Inter', sans-serif; outline: none; width: 100%; }
+  input[type=checkbox] { width: auto; }
+  input::placeholder { color: var(--text-dim); }
+  select option { background: var(--surface-2); }
+  button:disabled { opacity: 0.35; cursor: default; }
+  a { color: var(--amber); }
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+
+<script>
+const { useState, useEffect, useMemo } = React;
+
+// ---------- storage helpers ----------
+const KEYS = { settings:'settings', expenses:'expenses', customers:'customers', tasks:'tasks' };
+
+async function loadKey(key, fallback) {
+  try { const res = await window.storage.get(key,false); return res ? JSON.parse(res.value) : fallback; }
+  catch(e) { return fallback; }
+}
+async function saveKey(key, value) {
+  try { await window.storage.set(key, JSON.stringify(value), false); } catch(e) {}
+}
+
+const uid = () => Math.random().toString(36).slice(2,10);
+const fmtMoney = n => '$' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});
+const monthKey = d => (d||'').slice(0,7);
+const thisMonth = () => new Date().toISOString().slice(0,7);
+const PALETTE = ['#E8A33D','#45C9B0','#8B7FD9','#E8615A','#5AA9E6','#D9B45A'];
+const ventureColor = (name, list) => PALETTE[list.indexOf(name) % PALETTE.length] || '#8A8F9C';
+
+const Icon = (name, size=16) => {
+  const el = lucide[name];
+  if (!el) return null;
+  const svg = lucide.createElement(el);
+  svg.setAttribute('width', size); svg.setAttribute('height', size);
+  svg.setAttribute('stroke-width', 1.8);
+  svg.style.display = 'inline-block'; svg.style.verticalAlign = 'middle'; svg.style.flexShrink = 0;
+  const ref = React.useRef(null);
+  React.useEffect(() => { if (ref.current) { ref.current.innerHTML = ''; ref.current.appendChild(svg); } });
+  return React.createElement('span', {ref, style:{display:'inline-flex',alignItems:'center'}});
+};
+
+// ---- styles ----
+const h1 = {fontFamily:"'Space Grotesk',sans-serif", fontSize:22, fontWeight:700, margin:0, color:'var(--text)'};
+const h3 = {fontFamily:"'Space Grotesk',sans-serif", fontSize:14, fontWeight:700, marginBottom:10, color:'var(--text)'};
+const inp = {background:'var(--surface-2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'8px 10px', fontSize:13, fontFamily:'Inter,sans-serif', outline:'none', width:'100%'};
+const btn = {display:'inline-flex', alignItems:'center', gap:6, background:'var(--amber)', color:'#12141B', border:'none', borderRadius:6, padding:'9px 14px', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif'};
+const btnG = {...btn, background:'transparent', color:'var(--text-dim)', border:'1px solid var(--border)'};
+
+function StatCard({label, value, accent}) {
+  return React.createElement('div', {style:{background:'var(--surface)', borderRadius:8, padding:'14px 16px', border:'1px solid var(--border)'}},
+    React.createElement('div', {style:{fontSize:12, color:'var(--text-dim)', marginBottom:6}}, label),
+    React.createElement('div', {style:{fontFamily:"'JetBrains Mono',monospace", fontSize:20, fontWeight:700, color:accent||'var(--text)'}}, value)
+  );
+}
+
+function VentureTag({name, list}) {
+  const color = ventureColor(name, list);
+  return React.createElement('span', {style:{display:'inline-block', padding:'1px 7px', borderRadius:999, fontSize:11, background:color+'22', color, whiteSpace:'nowrap'}}, name);
+}
+
+function EmptyState({text}) {
+  return React.createElement('div', {style:{padding:'24px', background:'var(--surface)', borderRadius:8, color:'var(--text-dim)', fontSize:13, textAlign:'center', border:'1px dashed var(--border)'}}, text);
+}
+
+function RunwayGauge({months}) {
+  const isInf = months === Infinity;
+  const frac = isInf ? 1 : Math.max(0, Math.min(1, months/24));
+  const color = isInf ? '#45C9B0' : months < 3 ? '#E8615A' : months < 9 ? '#E8A33D' : '#45C9B0';
+  const R = 90, circ = Math.PI*R, dash = frac*circ;
+  const needleAngle = -90 + frac*180;
+  return React.createElement('div', {style:{background:'var(--surface)', borderRadius:8, padding:'20px 16px 12px', border:'1px solid var(--border)', textAlign:'center'}},
+    React.createElement('div', {style:{fontSize:12, color:'var(--text-dim)', marginBottom:4}}, '⛽ Runway'),
+    React.createElement('svg', {viewBox:'0 0 240 140', width:'100%', style:{maxWidth:240, display:'block', margin:'0 auto'}},
+      React.createElement('path', {d:'M 30 120 A 90 90 0 0 1 210 120', fill:'none', stroke:'var(--surface-2)', strokeWidth:14, strokeLinecap:'round'}),
+      React.createElement('path', {d:'M 30 120 A 90 90 0 0 1 210 120', fill:'none', stroke:color, strokeWidth:14, strokeLinecap:'round', strokeDasharray:`${dash} ${circ}`}),
+      React.createElement('line', {x1:120,y1:120,x2:120,y2:48,stroke:color,strokeWidth:3,strokeLinecap:'round', transform:`rotate(${needleAngle} 120 120)`}),
+      React.createElement('circle', {cx:120,cy:120,r:7,fill:color}),
+      React.createElement('text', {x:120,y:108,textAnchor:'middle',fill:'var(--text)',fontFamily:"JetBrains Mono,monospace",fontSize:22,fontWeight:700}, isInf ? '∞' : months.toFixed(1)),
+      React.createElement('text', {x:120,y:126,textAnchor:'middle',fill:'var(--text-dim)',fontFamily:'Inter,sans-serif',fontSize:11}, isInf ? 'profitable' : 'months')
+    )
+  );
+}
+
+// ===== DASHBOARD =====
+function Dashboard({cashOnHand, mrr, monthlyBurn, runwayMonths, expenses, ventures}) {
+  const recent = useMemo(() => [...expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6), [expenses]);
+  return React.createElement('div', null,
+    React.createElement('h1', {style:h1}, 'Dashboard'),
+    React.createElement('p', {style:{color:'var(--text-dim)',fontSize:13,marginTop:4,marginBottom:20}}, 'Your business, at a glance.'),
+    React.createElement('div', {style:{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:12, marginBottom:24}},
+      React.createElement(StatCard, {label:'Cash on hand', value:fmtMoney(cashOnHand)}),
+      React.createElement(StatCard, {label:'MRR', value:fmtMoney(mrr), accent:'var(--teal)'}),
+      React.createElement(StatCard, {label:'Monthly burn', value:fmtMoney(monthlyBurn), accent:'var(--red)'}),
+      React.createElement(StatCard, {label:'Runway', value:runwayMonths===Infinity?'∞':`${runwayMonths.toFixed(1)} mo`, accent:'var(--amber)'}),
+    ),
+    React.createElement('div', {style:{display:'grid', gridTemplateColumns:'260px 1fr', gap:20, alignItems:'start'}},
+      React.createElement(RunwayGauge, {months:runwayMonths}),
+      React.createElement('div', null,
+        React.createElement('div', {style:{...h3, marginBottom:8}}, 'Recent expenses'),
+        recent.length === 0 ? React.createElement(EmptyState, {text:'No expenses yet. Add one from Finances.'}) :
+        React.createElement('div', {style:{display:'flex', flexDirection:'column', gap:1}},
+          recent.map(e => React.createElement('div', {key:e.id, style:{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background:'var(--surface)', borderRadius:6}},
+            React.createElement('div', null,
+              React.createElement('div', {style:{fontSize:13,fontWeight:500}}, e.vendor||'Untitled'),
+              React.createElement('div', {style:{fontSize:11,color:'var(--text-dim)',display:'flex',gap:6,alignItems:'center',marginTop:2}},
+                e.date, e.venture && React.createElement(VentureTag, {name:e.venture, list:ventures})
+              )
+            ),
+            React.createElement('span', {style:{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:'var(--red)',flexShrink:0,marginLeft:12}}, `-${fmtMoney(e.amount)}`)
+          ))
+        )
+      )
+    )
+  );
+}
+
+// ===== FINANCES =====
+function Finances({settings, setSettings, expenses, setExpenses, ventures, monthlyBurn}) {
+  const blank = {date:new Date().toISOString().slice(0,10),vendor:'',category:'',venture:'',amount:'',recurring:false};
+  const [form, setForm] = useState(blank);
+  const addExpense = () => { if(!form.vendor||!form.amount) return; setExpenses(l=>[...l,{...form,id:uid(),amount:Number(form.amount)}]); setForm(blank); };
+  const sorted = useMemo(()=>[...expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||'')), [expenses]);
+  const byCategory = useMemo(()=>{const m={}; expenses.forEach(e=>{const k=e.category||'Uncategorized'; m[k]=(m[k]||0)+Number(e.amount||0);}); return Object.entries(m).sort((a,b)=>b[1]-a[1]);}, [expenses]);
+  const totalSpend = byCategory.reduce((s,[,v])=>s+v,0)||1;
+  const cats = ['Software / tools','Hosting','Contractors','Marketing','Legal / admin','Other'];
+
+  return React.createElement('div', null,
+    React.createElement('h1', {style:h1}, 'Finances'),
+    React.createElement('p', {style:{color:'var(--text-dim)',fontSize:13,marginTop:4,marginBottom:16}}, 'Track spend and know your burn rate.'),
+    React.createElement('div', {style:{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}},
+      React.createElement('div', {style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px',display:'flex',alignItems:'center',gap:10}},
+        React.createElement('span', {style:{fontSize:12,color:'var(--text-dim)'}}, 'Cash on hand'),
+        React.createElement('input', {type:'number', value:settings.cashOnHand, onChange:e=>setSettings(s=>({...s,cashOnHand:e.target.value})), style:{...inp,width:110,background:'transparent',border:'none',fontFamily:"'JetBrains Mono',monospace",fontSize:15,padding:0}})
+      ),
+      React.createElement('div', {style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 14px',display:'flex',alignItems:'center',gap:8}},
+        React.createElement('span', {style:{fontSize:12,color:'var(--text-dim)'}},'Monthly burn'),
+        React.createElement('span', {style:{fontFamily:"'JetBrains Mono',monospace",fontSize:15,color:'var(--red)'}}, fmtMoney(monthlyBurn))
+      )
+    ),
+    React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 260px',gap:24,alignItems:'start'}},
+      React.createElement('div', null,
+        React.createElement('div', {style:{...h3}}, 'Add expense'),
+        React.createElement('div', {style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:8}},
+          React.createElement('input', {style:inp, type:'date', value:form.date, onChange:e=>setForm(f=>({...f,date:e.target.value}))}),
+          React.createElement('input', {style:inp, placeholder:'Vendor', value:form.vendor, onChange:e=>setForm(f=>({...f,vendor:e.target.value}))}),
+          React.createElement('input', {style:inp, placeholder:'Category', list:'cat-list', value:form.category, onChange:e=>setForm(f=>({...f,category:e.target.value}))}),
+          React.createElement('datalist', {id:'cat-list'}, cats.map(c=>React.createElement('option',{key:c,value:c}))),
+          React.createElement('input', {style:inp, placeholder:'Venture', list:'ven-list', value:form.venture, onChange:e=>setForm(f=>({...f,venture:e.target.value}))}),
+          React.createElement('datalist', {id:'ven-list'}, ventures.map(v=>React.createElement('option',{key:v,value:v}))),
+          React.createElement('input', {style:inp, type:'number', placeholder:'Amount ($)', value:form.amount, onChange:e=>setForm(f=>({...f,amount:e.target.value}))})
+        ),
+        React.createElement('label', {style:{display:'flex',alignItems:'center',gap:6,fontSize:13,color:'var(--text-dim)',marginBottom:12}},
+          React.createElement('input', {type:'checkbox', checked:form.recurring, onChange:e=>setForm(f=>({...f,recurring:e.target.checked}))}),
+          'Recurring monthly'
+        ),
+        React.createElement('button', {style:btn, onClick:addExpense}, '+ Add expense'),
+        React.createElement('div', {style:{...h3,marginTop:24}}, 'All expenses'),
+        sorted.length===0 ? React.createElement(EmptyState, {text:'No expenses yet.'}) :
+        React.createElement('div', {style:{display:'flex',flexDirection:'column',gap:1}},
+          sorted.map(e=>React.createElement('div', {key:e.id, style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',background:'var(--surface)',borderRadius:6}},
+            React.createElement('div', null,
+              React.createElement('div', {style:{fontSize:13,fontWeight:500}}, e.vendor, e.recurring && React.createElement('span',{style:{fontSize:10,color:'var(--amber)',marginLeft:6,background:'#E8A33D22',padding:'1px 5px',borderRadius:4}},'recurring')),
+              React.createElement('div', {style:{fontSize:11,color:'var(--text-dim)',display:'flex',gap:6,alignItems:'center',marginTop:2}}, e.date, ' · ', e.category||'Uncategorized', e.venture && React.createElement(VentureTag,{name:e.venture,list:ventures}))
+            ),
+            React.createElement('div', {style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
+              React.createElement('span',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:'var(--red)'}},`-${fmtMoney(e.amount)}`),
+              React.createElement('button',{onClick:()=>setExpenses(l=>l.filter(x=>x.id!==e.id)),style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',padding:4,fontSize:16}}, '×')
+            )
+          ))
+        )
+      ),
+      React.createElement('div', null,
+        React.createElement('div', {style:h3}, 'Spend by category'),
+        byCategory.length===0 ? React.createElement(EmptyState,{text:'Nothing yet.'}) :
+        React.createElement('div', {style:{display:'flex',flexDirection:'column',gap:10}},
+          byCategory.map(([cat,amt])=>React.createElement('div', {key:cat},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text-dim)',marginBottom:4}},
+              React.createElement('span',null,cat),
+              React.createElement('span',{style:{fontFamily:"'JetBrains Mono',monospace"}},fmtMoney(amt))
+            ),
+            React.createElement('div',{style:{height:6,background:'var(--surface-2)',borderRadius:3,overflow:'hidden'}},
+              React.createElement('div',{style:{height:'100%',width:`${(amt/totalSpend)*100}%`,background:'var(--amber)',borderRadius:3}})
+            )
+          ))
+        )
+      )
+    )
+  );
+}
+
+// ===== CUSTOMERS =====
+function Customers({customers, setCustomers, ventures, mrr}) {
+  const blank = {name:'',mrr:'',status:'active',venture:'',startDate:new Date().toISOString().slice(0,10)};
+  const [form, setForm] = useState(blank);
+  const addCust = () => { if(!form.name) return; setCustomers(l=>[...l,{...form,id:uid(),mrr:Number(form.mrr||0)}]); setForm(blank); };
+  const statusColor = {active:'var(--teal)',trial:'var(--amber)',churned:'var(--red)'};
+
+  return React.createElement('div', null,
+    React.createElement('h1', {style:h1}, 'Customers'),
+    React.createElement('p', {style:{color:'var(--text-dim)',fontSize:13,marginTop:4,marginBottom:4}}, 'Every subscriber and where your MRR comes from.'),
+    React.createElement('div', {style:{fontFamily:"'JetBrains Mono',monospace",fontSize:22,color:'var(--teal)',fontWeight:700,marginBottom:20}},
+      fmtMoney(mrr), React.createElement('span',{style:{fontSize:12,color:'var(--text-dim)',fontFamily:'Inter,sans-serif',fontWeight:400,marginLeft:4}}, 'MRR')
+    ),
+    React.createElement('div', {style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:10,maxWidth:680}},
+      React.createElement('input',{style:inp,placeholder:'Customer name',value:form.name,onChange:e=>setForm(f=>({...f,name:e.target.value}))}),
+      React.createElement('input',{style:inp,type:'number',placeholder:'MRR ($)',value:form.mrr,onChange:e=>setForm(f=>({...f,mrr:e.target.value}))}),
+      React.createElement('select',{style:inp,value:form.status,onChange:e=>setForm(f=>({...f,status:e.target.value}))},
+        React.createElement('option',{value:'active'},'Active'),
+        React.createElement('option',{value:'trial'},'Trial'),
+        React.createElement('option',{value:'churned'},'Churned')
+      ),
+      React.createElement('input',{style:inp,placeholder:'Venture',list:'cv-list',value:form.venture,onChange:e=>setForm(f=>({...f,venture:e.target.value}))}),
+      React.createElement('datalist',{id:'cv-list'},ventures.map(v=>React.createElement('option',{key:v,value:v}))),
+      React.createElement('input',{style:inp,type:'date',value:form.startDate,onChange:e=>setForm(f=>({...f,startDate:e.target.value}))})
+    ),
+    React.createElement('button',{style:{...btn,marginBottom:24},onClick:addCust},'+ Add customer'),
+    customers.length===0 ? React.createElement(EmptyState,{text:'No customers yet. Add your first subscriber above.'}) :
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}},
+      customers.map(c=>React.createElement('div',{key:c.id,style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:14}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}},
+          React.createElement('div',{style:{fontWeight:600,fontSize:14}},c.name),
+          React.createElement('button',{onClick:()=>setCustomers(l=>l.filter(x=>x.id!==c.id)),style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',padding:2,fontSize:16}},'×')
+        ),
+        React.createElement('div',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:18,marginBottom:8}}, fmtMoney(c.mrr), React.createElement('span',{style:{fontSize:11,color:'var(--text-dim)',fontFamily:'Inter,sans-serif'}},'/mo')),
+        React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:6}},
+          React.createElement('select',{value:c.status,onChange:e=>setCustomers(l=>l.map(x=>x.id===c.id?{...x,status:e.target.value}:x)),style:{...inp,width:'auto',padding:'4px 8px',fontSize:12,color:statusColor[c.status]}},
+            React.createElement('option',{value:'active'},'Active'),
+            React.createElement('option',{value:'trial'},'Trial'),
+            React.createElement('option',{value:'churned'},'Churned')
+          ),
+          c.venture && React.createElement(VentureTag,{name:c.venture,list:ventures})
+        ),
+        React.createElement('div',{style:{fontSize:11,color:'var(--text-dim)'}}, 'Since ', c.startDate)
+      ))
+    )
+  );
+}
+
+// ===== ROADMAP =====
+function Roadmap({tasks, setTasks, ventures}) {
+  const blank = {title:'',venture:'',dueDate:'',status:'backlog'};
+  const [form, setForm] = useState(blank);
+  const columns = [{id:'backlog',label:'Backlog'},{id:'progress',label:'In progress'},{id:'done',label:'Done'}];
+  const addTask = () => { if(!form.title) return; setTasks(l=>[...l,{...form,id:uid()}]); setForm(blank); };
+  const move = (id, dir) => { const order=['backlog','progress','done']; setTasks(l=>l.map(t=>{ if(t.id!==id) return t; const i=order.indexOf(t.status); return {...t,status:order[Math.max(0,Math.min(2,i+dir))]}; })); };
+  const colColors = {backlog:'#8A8F9C',progress:'var(--amber)',done:'var(--teal)'};
+
+  return React.createElement('div', null,
+    React.createElement('h1',{style:h1},'Roadmap'),
+    React.createElement('p',{style:{color:'var(--text-dim)',fontSize:13,marginTop:4,marginBottom:20}},'What\'s next across every venture.'),
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:10,maxWidth:640}},
+      React.createElement('input',{style:inp,placeholder:'Task title',value:form.title,onChange:e=>setForm(f=>({...f,title:e.target.value}))}),
+      React.createElement('input',{style:inp,placeholder:'Venture',list:'tv-list',value:form.venture,onChange:e=>setForm(f=>({...f,venture:e.target.value}))}),
+      React.createElement('datalist',{id:'tv-list'},ventures.map(v=>React.createElement('option',{key:v,value:v}))),
+      React.createElement('input',{style:inp,type:'date',value:form.dueDate,onChange:e=>setForm(f=>({...f,dueDate:e.target.value}))})
+    ),
+    React.createElement('button',{style:{...btn,marginBottom:24},onClick:addTask},'+ Add task'),
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}},
+      columns.map(col=>React.createElement('div',{key:col.id},
+        React.createElement('div',{style:{fontSize:11,fontWeight:600,color:colColors[col.id],textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}},
+          col.label, ' · ', tasks.filter(t=>t.status===col.id).length
+        ),
+        React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+          tasks.filter(t=>t.status===col.id).map(t=>React.createElement('div',{key:t.id,style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:12}},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',gap:6,marginBottom:6}},
+              React.createElement('div',{style:{fontSize:13,fontWeight:500,lineHeight:1.4}},t.title),
+              React.createElement('button',{onClick:()=>setTasks(l=>l.filter(x=>x.id!==t.id)),style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',padding:2,flexShrink:0,fontSize:16}},'×')
+            ),
+            React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:8}},
+              t.venture && React.createElement(VentureTag,{name:t.venture,list:ventures}),
+              t.dueDate && React.createElement('span',{style:{fontSize:11,color:'var(--text-dim)'}},t.dueDate)
+            ),
+            React.createElement('div',{style:{display:'flex',gap:6}},
+              React.createElement('button',{disabled:col.id==='backlog',onClick:()=>move(t.id,-1),style:{...btnG,padding:'4px 10px',fontSize:12}}, '←'),
+              React.createElement('button',{disabled:col.id==='done',onClick:()=>move(t.id,1),style:{...btnG,padding:'4px 10px',fontSize:12}}, '→')
+            )
+          )),
+          tasks.filter(t=>t.status===col.id).length===0 && React.createElement('div',{style:{fontSize:12,color:'var(--text-dim)',padding:'14px',textAlign:'center',border:'1px dashed var(--border)',borderRadius:8}},'Empty')
+        )
+      ))
+    )
+  );
+}
+
+// ===== APP =====
+function App() {
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('dashboard');
+  const [settings, setSettings] = useState({cashOnHand:0,businessName:'Bootstrap HQ'});
+  const [expenses, setExpenses] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(()=>{
+    (async()=>{
+      const [s,e,c,t] = await Promise.all([
+        loadKey(KEYS.settings,{cashOnHand:0,businessName:'Bootstrap HQ'}),
+        loadKey(KEYS.expenses,[]),
+        loadKey(KEYS.customers,[]),
+        loadKey(KEYS.tasks,[]),
+      ]);
+      setSettings(s); setExpenses(e); setCustomers(c); setTasks(t);
+      setLoading(false);
+    })();
+  },[]);
+
+  useEffect(()=>{ if(!loading) saveKey(KEYS.settings,settings); },[settings,loading]);
+  useEffect(()=>{ if(!loading) saveKey(KEYS.expenses,expenses); },[expenses,loading]);
+  useEffect(()=>{ if(!loading) saveKey(KEYS.customers,customers); },[customers,loading]);
+  useEffect(()=>{ if(!loading) saveKey(KEYS.tasks,tasks); },[tasks,loading]);
+
+  const ventures = useMemo(()=>{
+    const s=new Set();
+    expenses.forEach(e=>e.venture&&s.add(e.venture));
+    customers.forEach(c=>c.venture&&s.add(c.venture));
+    tasks.forEach(t=>t.venture&&s.add(t.venture));
+    return Array.from(s);
+  },[expenses,customers,tasks]);
+
+  const mrr = useMemo(()=>customers.filter(c=>c.status==='active').reduce((s,c)=>s+Number(c.mrr||0),0),[customers]);
+  const monthlyBurn = useMemo(()=>{
+    const rec=expenses.filter(e=>e.recurring).reduce((s,e)=>s+Number(e.amount||0),0);
+    const ot=expenses.filter(e=>!e.recurring&&monthKey(e.date)===thisMonth()).reduce((s,e)=>s+Number(e.amount||0),0);
+    return rec+ot;
+  },[expenses]);
+  const netBurn = monthlyBurn - mrr;
+  const runwayMonths = netBurn>0 ? Number(settings.cashOnHand||0)/netBurn : Infinity;
+
+  if(loading) return React.createElement('div',{style:{padding:40,color:'var(--text-dim)',fontFamily:'Inter,sans-serif',textAlign:'center'}},'Loading…');
+
+  const navItems = [
+    {id:'dashboard',label:'Dashboard'},
+    {id:'finances',label:'Finances'},
+    {id:'customers',label:'Customers'},
+    {id:'roadmap',label:'Roadmap'},
+  ];
+
+  return React.createElement('div', {style:{background:'var(--bg)',minHeight:600,display:'flex',borderRadius:12,overflow:'hidden',border:'1px solid var(--border)',color:'var(--text)',fontFamily:'Inter,sans-serif'}},
+    // Sidebar
+    React.createElement('div',{style:{width:200,background:'var(--surface)',borderRight:'1px solid var(--border)',padding:'24px 14px',flexShrink:0}},
+      React.createElement('input',{value:settings.businessName,onChange:e=>setSettings(s=>({...s,businessName:e.target.value})),style:{background:'transparent',border:'none',color:'var(--text)',fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,fontSize:16,width:'100%',padding:0,outline:'none',marginBottom:4}}),
+      React.createElement('div',{style:{fontSize:10,color:'var(--text-dim)',letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:28}},'Operator console'),
+      React.createElement('nav',{style:{display:'flex',flexDirection:'column',gap:2}},
+        navItems.map(item=>{
+          const active = tab===item.id;
+          return React.createElement('button',{key:item.id,onClick:()=>setTab(item.id),style:{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',borderRadius:6,border:'none',background:active?'var(--surface-2)':'transparent',color:active?'var(--text)':'var(--text-dim)',fontFamily:'Inter,sans-serif',fontSize:13,fontWeight:active?600:400,cursor:'pointer',textAlign:'left',width:'100%'}},
+            item.label
+          );
+        })
+      )
+    ),
