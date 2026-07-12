@@ -305,7 +305,7 @@
       const monthlyIncome = getMonthlyIncome();
       const oneTimeIncome = getOneTimeIncome();
       const monthlyExpenses = getMonthlyExpenses();
-      const profit = monthlyIncome - monthlyExpenses;
+      const profit = monthlyIncome + oneTimeIncome - monthlyExpenses;
       
       document.getElementById('stat-income').textContent = fmt(monthlyIncome);
       document.getElementById('stat-expenses').textContent = fmt(monthlyExpenses);
@@ -315,7 +315,7 @@
       document.getElementById('summary-income').textContent = fmt(monthlyIncome);
       document.getElementById('summary-onetime').textContent = fmt(oneTimeIncome);
       document.getElementById('summary-expenses').textContent = fmt(monthlyExpenses);
-      document.getElementById('summary-profit').textContent = fmt(profit);
+      document.getElementById('summary-profit').textContent = fmt(profit) + ' (includes ' + fmt(oneTimeIncome) + ' one-time)';
       document.getElementById('mrr-header').textContent = fmt(monthlyIncome) + ' MRR';
       
       // Chart
