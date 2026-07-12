@@ -33,6 +33,9 @@
     .summary-row:last-child { border-bottom: none; }
     .summary-label { color: #8A8F9C; }
     .summary-value { font-family: monospace; font-weight: 600; }
+    .cust-type-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 4px; }
+    .recurring-badge { background: #45C9B022; color: #45C9B0; }
+    .onetime-badge { background: #E8A33D22; color: #E8A33D; }
   </style>
 </head>
 <body>
@@ -64,8 +67,12 @@
         <div class="card">
           <div style="font-weight: 600; margin-bottom: 12px;">Summary</div>
           <div class="summary-row">
-            <span class="summary-label">Total Monthly Income</span>
+            <span class="summary-label">Total Monthly Income (Recurring)</span>
             <span class="summary-value income" id="summary-income">$0</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">One-Time Income</span>
+            <span class="summary-value income" id="summary-onetime">$0</span>
           </div>
           <div class="summary-row">
             <span class="summary-label">Total Monthly Expenses</span>
@@ -129,6 +136,10 @@
           <div class="form-group">
             <input type="text" id="cust-name-input" placeholder="Customer name">
             <input type="number" id="cust-amount-input" placeholder="Amount" step="0.01">
+            <select id="cust-type-input" onchange="updateCustomerFrequency()">
+              <option value="recurring">Recurring</option>
+              <option value="onetime">One-Time Payment</option>
+            </select>
             <select id="cust-frequency-input">
               <option value="monthly">Monthly (MRR)</option>
               <option value="annual">Annual</option>
@@ -212,6 +223,7 @@
     function addCustomer() {
       const name = document.getElementById('cust-name-input').value.trim();
       const amount = parseFloat(document.getElementById('cust-amount-input').value);
+      const type = document.getElementById('cust-type-input').value;
       const frequency = document.getElementById('cust-frequency-input').value;
       const status = document.getElementById('cust-status-input').value;
 
@@ -221,12 +233,15 @@
         id: Date.now(),
         name,
         amount,
+        type,
         frequency,
         status
       });
       
       document.getElementById('cust-name-input').value = '';
       document.getElementById('cust-amount-input').value = '';
+      document.getElementById('cust-type-input').value = 'recurring';
+      document.getElementById('cust-frequency-input').value = 'monthly';
       save();
     }
 
@@ -250,11 +265,17 @@
 
     function getMonthlyIncome() {
       return state.customers
-        .filter(c => c.status === 'active')
+        .filter(c => c.status === 'active' && c.type === 'recurring')
         .reduce((sum, c) => {
           const monthly = c.frequency === 'annual' ? c.amount / 12 : c.amount;
           return sum + monthly;
         }, 0);
+    }
+
+    function getOneTimeIncome() {
+      return state.customers
+        .filter(c => c.status === 'active' && c.type === 'onetime')
+        .reduce((sum, c) => sum + c.amount, 0);
     }
 
     function getMonthlyExpenses() {
@@ -266,14 +287,23 @@
         }, 0);
     }
 
-    function getTotalExpenses() {
-      return state.expenses.reduce((sum, e) => sum + e.amount, 0);
+    function updateCustomerFrequency() {
+      const type = document.getElementById('cust-type-input').value;
+      const freqSelect = document.getElementById('cust-frequency-input');
+      
+      if (type === 'onetime') {
+        freqSelect.disabled = true;
+        freqSelect.value = 'monthly';
+      } else {
+        freqSelect.disabled = false;
+      }
     }
 
     function render() {
       state.settings.cash = parseFloat(document.getElementById('cash-input').value) || 0;
       
       const monthlyIncome = getMonthlyIncome();
+      const oneTimeIncome = getOneTimeIncome();
       const monthlyExpenses = getMonthlyExpenses();
       const profit = monthlyIncome - monthlyExpenses;
       
@@ -283,6 +313,7 @@
       document.getElementById('stat-cash').textContent = fmt(state.settings.cash);
       
       document.getElementById('summary-income').textContent = fmt(monthlyIncome);
+      document.getElementById('summary-onetime').textContent = fmt(oneTimeIncome);
       document.getElementById('summary-expenses').textContent = fmt(monthlyExpenses);
       document.getElementById('summary-profit').textContent = fmt(profit);
       document.getElementById('mrr-header').textContent = fmt(monthlyIncome) + ' MRR';
@@ -328,14 +359,19 @@
       
       // Customers
       document.getElementById('cust-list').innerHTML = state.customers.map(c => {
-        const monthly = c.frequency === 'annual' ? c.amount / 12 : c.amount;
+        const monthly = c.type === 'onetime' ? 0 : (c.frequency === 'annual' ? c.amount / 12 : c.amount);
+        const badge = c.type === 'onetime' 
+          ? `<span class="cust-type-badge onetime-badge">ONE-TIME: ${fmt(c.amount)}</span>`
+          : `<span class="cust-type-badge recurring-badge">${c.frequency.toUpperCase()}</span>`;
+        
         return `<div class="card">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <strong>${c.name}</strong>
             <button onclick="state.customers = state.customers.filter(x => x.id !== ${c.id}); save();" style="background: none; border: none; color: #8A8F9C; cursor: pointer; padding: 0; font-weight: normal;">×</button>
           </div>
           <div style="font-family: monospace; font-size: 18px; margin-bottom: 8px;">${fmt(monthly)}/mo</div>
-          <div class="small-text">Frequency: ${c.frequency} · Status: ${c.status}</div>
+          ${badge}
+          <div class="small-text" style="margin-top: 6px;">Status: ${c.status}</div>
         </div>`;
       }).join('') || '<div class="small-text">No customers</div>';
       
