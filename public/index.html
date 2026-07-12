@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bootstrap HQ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
@@ -23,9 +24,15 @@
     button { background: #E8A33D; color: #12141B; border: none; border-radius: 6px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 13px; }
     .expense-row { display: flex; justify-content: space-between; padding: 10px 12px; background: #232733; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
     .amount { color: #E8615A; font-family: monospace; }
+    .income { color: #45C9B0; font-family: monospace; }
     .cust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
     .section-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
     .small-text { font-size: 12px; color: #8A8F9C; }
+    .chart-container { background: #1B1E28; border: 1px solid #2E323F; border-radius: 8px; padding: 16px; margin-bottom: 24px; max-width: 600px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #2E323F; font-size: 14px; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-label { color: #8A8F9C; }
+    .summary-value { font-family: monospace; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -43,28 +50,72 @@
       <div id="tab-dashboard">
         <div class="section-title">Dashboard</div>
         <div class="stat-grid">
-          <div class="card"><div class="small-text">Cash on hand</div><div class="stat-value" id="stat-cash">$0</div></div>
-          <div class="card"><div class="small-text">MRR</div><div class="stat-value" id="stat-mrr" style="color: #45C9B0;">$0</div></div>
-          <div class="card"><div class="small-text">Monthly burn</div><div class="stat-value" id="stat-burn" style="color: #E8615A;">$0</div></div>
-          <div class="card"><div class="small-text">Runway</div><div class="stat-value" id="stat-runway" style="color: #E8A33D;">∞</div></div>
+          <div class="card"><div class="small-text">Total Income (Monthly)</div><div class="stat-value income" id="stat-income">$0</div></div>
+          <div class="card"><div class="small-text">Total Expenses (Monthly)</div><div class="stat-value amount" id="stat-expenses">$0</div></div>
+          <div class="card"><div class="small-text">Net Profit</div><div class="stat-value" id="stat-profit">$0</div></div>
+          <div class="card"><div class="small-text">Cash on Hand</div><div class="stat-value" id="stat-cash">$0</div></div>
         </div>
-        <div class="card"><div style="font-weight: 600; margin-bottom: 12px;">Recent expenses</div><div id="recent-list"></div></div>
+
+        <div class="chart-container">
+          <div style="font-weight: 600; margin-bottom: 16px;">Income vs Expenses (Monthly)</div>
+          <canvas id="chart-income-expenses" height="80"></canvas>
+        </div>
+
+        <div class="card">
+          <div style="font-weight: 600; margin-bottom: 12px;">Summary</div>
+          <div class="summary-row">
+            <span class="summary-label">Total Monthly Income</span>
+            <span class="summary-value income" id="summary-income">$0</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Total Monthly Expenses</span>
+            <span class="summary-value amount" id="summary-expenses">$0</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Monthly Net Profit</span>
+            <span class="summary-value" id="summary-profit">$0</span>
+          </div>
+        </div>
+
+        <div class="card"><div style="font-weight: 600; margin-bottom: 12px;">Recent Expenses</div><div id="recent-list"></div></div>
       </div>
 
       <!-- Finances -->
       <div id="tab-finances" class="hidden">
         <div class="section-title">Finances</div>
         <div class="form-group">
-          <input type="number" id="cash-input" placeholder="Cash on hand" onchange="updateStats()">
-          <input type="text" id="vendor-input" placeholder="Vendor">
-          <input type="number" id="amount-input" placeholder="Amount">
-          <input type="text" id="category-input" placeholder="Category">
+          <input type="number" id="cash-input" placeholder="Cash on hand" step="0.01" onchange="updateStats()">
         </div>
-        <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; color: #8A8F9C; font-size: 13px;">
-          <input type="checkbox" id="recurring-input"> Recurring monthly
-        </label>
-        <button onclick="addExpense()">+ Add expense</button>
-        <div style="margin-top: 24px; font-weight: 600; margin-bottom: 12px;">All expenses</div>
+        
+        <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #2E323F;">
+          <div style="font-weight: 600; margin-bottom: 12px;">Add Expense</div>
+          <div class="form-group">
+            <input type="date" id="expense-date-input">
+            <input type="text" id="vendor-input" placeholder="Vendor">
+            <input type="number" id="amount-input" placeholder="Amount" step="0.01">
+            <select id="category-input">
+              <option value="">Category</option>
+              <option value="Software/Tools">Software/Tools</option>
+              <option value="Hosting">Hosting</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Contractors">Contractors</option>
+              <option value="Legal/Admin">Legal/Admin</option>
+              <option value="Office">Office</option>
+              <option value="Travel">Travel</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; color: #8A8F9C; font-size: 13px;">
+            <input type="checkbox" id="recurring-input"> Recurring:
+            <select id="frequency-input" style="width: 120px;">
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+            </select>
+          </label>
+          <button onclick="addExpense()">+ Add expense</button>
+        </div>
+
+        <div style="font-weight: 600; margin-bottom: 12px;">All Expenses</div>
         <div id="expense-list"></div>
       </div>
 
@@ -72,13 +123,26 @@
       <div id="tab-customers" class="hidden">
         <div class="section-title">Customers</div>
         <div id="mrr-header" style="font-family: monospace; font-size: 22px; color: #45C9B0; font-weight: 700; margin-bottom: 20px;">$0 MRR</div>
-        <div class="form-group">
-          <input type="text" id="cust-name-input" placeholder="Customer name">
-          <input type="number" id="cust-mrr-input" placeholder="MRR">
-          <select id="cust-status-input"><option value="active">Active</option><option value="trial">Trial</option><option value="churned">Churned</option></select>
+        
+        <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #2E323F;">
+          <div style="font-weight: 600; margin-bottom: 12px;">Add Customer</div>
+          <div class="form-group">
+            <input type="text" id="cust-name-input" placeholder="Customer name">
+            <input type="number" id="cust-amount-input" placeholder="Amount" step="0.01">
+            <select id="cust-frequency-input">
+              <option value="monthly">Monthly (MRR)</option>
+              <option value="annual">Annual</option>
+            </select>
+            <select id="cust-status-input">
+              <option value="active">Active</option>
+              <option value="trial">Trial</option>
+              <option value="churned">Churned</option>
+            </select>
+          </div>
+          <button onclick="addCustomer()">+ Add customer</button>
         </div>
-        <button onclick="addCustomer()">+ Add customer</button>
-        <div class="cust-grid" id="cust-list" style="margin-top: 20px;"></div>
+
+        <div class="cust-grid" id="cust-list"></div>
       </div>
 
       <!-- Roadmap -->
@@ -106,6 +170,8 @@
       tasks: JSON.parse(localStorage.getItem('hq-tasks')) || []
     };
 
+    let chart = null;
+
     function save() {
       localStorage.setItem('hq-settings', JSON.stringify(state.settings));
       localStorage.setItem('hq-expenses', JSON.stringify(state.expenses));
@@ -115,19 +181,26 @@
     }
 
     function addExpense() {
+      const date = document.getElementById('expense-date-input').value;
       const vendor = document.getElementById('vendor-input').value.trim();
       const amount = parseFloat(document.getElementById('amount-input').value);
-      if (!vendor || !amount) { alert('Vendor and amount required'); return; }
+      const category = document.getElementById('category-input').value;
+      const recurring = document.getElementById('recurring-input').checked;
+      const frequency = document.getElementById('frequency-input').value;
+
+      if (!date || !vendor || !amount || !category) { alert('All fields required'); return; }
       
       state.expenses.push({
         id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
+        date,
         vendor,
         amount,
-        category: document.getElementById('category-input').value || 'Other',
-        recurring: document.getElementById('recurring-input').checked
+        category,
+        recurring,
+        frequency
       });
       
+      document.getElementById('expense-date-input').value = new Date().toISOString().split('T')[0];
       document.getElementById('vendor-input').value = '';
       document.getElementById('amount-input').value = '';
       document.getElementById('category-input').value = '';
@@ -138,18 +211,22 @@
 
     function addCustomer() {
       const name = document.getElementById('cust-name-input').value.trim();
-      const mrr = parseFloat(document.getElementById('cust-mrr-input').value);
-      if (!name) { alert('Name required'); return; }
+      const amount = parseFloat(document.getElementById('cust-amount-input').value);
+      const frequency = document.getElementById('cust-frequency-input').value;
+      const status = document.getElementById('cust-status-input').value;
+
+      if (!name || !amount) { alert('Name and amount required'); return; }
       
       state.customers.push({
         id: Date.now(),
         name,
-        mrr: mrr || 0,
-        status: document.getElementById('cust-status-input').value
+        amount,
+        frequency,
+        status
       });
       
       document.getElementById('cust-name-input').value = '';
-      document.getElementById('cust-mrr-input').value = '';
+      document.getElementById('cust-amount-input').value = '';
       save();
     }
 
@@ -169,30 +246,79 @@
       save();
     }
 
-    function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+    function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+
+    function getMonthlyIncome() {
+      return state.customers
+        .filter(c => c.status === 'active')
+        .reduce((sum, c) => {
+          const monthly = c.frequency === 'annual' ? c.amount / 12 : c.amount;
+          return sum + monthly;
+        }, 0);
+    }
+
+    function getMonthlyExpenses() {
+      return state.expenses
+        .filter(e => e.recurring)
+        .reduce((sum, e) => {
+          const monthly = e.frequency === 'annual' ? e.amount / 12 : e.amount;
+          return sum + monthly;
+        }, 0);
+    }
+
+    function getTotalExpenses() {
+      return state.expenses.reduce((sum, e) => sum + e.amount, 0);
+    }
 
     function render() {
       state.settings.cash = parseFloat(document.getElementById('cash-input').value) || 0;
       
-      const mrr = state.customers.filter(c => c.status === 'active').reduce((s, c) => s + c.mrr, 0);
-      const burn = state.expenses.filter(e => e.recurring).reduce((s, e) => s + e.amount, 0);
-      const net = burn - mrr;
-      const runway = net > 0 ? (state.settings.cash / net).toFixed(1) : '∞';
+      const monthlyIncome = getMonthlyIncome();
+      const monthlyExpenses = getMonthlyExpenses();
+      const profit = monthlyIncome - monthlyExpenses;
       
+      document.getElementById('stat-income').textContent = fmt(monthlyIncome);
+      document.getElementById('stat-expenses').textContent = fmt(monthlyExpenses);
+      document.getElementById('stat-profit').textContent = fmt(profit);
       document.getElementById('stat-cash').textContent = fmt(state.settings.cash);
-      document.getElementById('stat-mrr').textContent = fmt(mrr);
-      document.getElementById('stat-burn').textContent = fmt(burn);
-      document.getElementById('stat-runway').textContent = runway + ' mo';
-      document.getElementById('mrr-header').textContent = fmt(mrr) + ' MRR';
       
+      document.getElementById('summary-income').textContent = fmt(monthlyIncome);
+      document.getElementById('summary-expenses').textContent = fmt(monthlyExpenses);
+      document.getElementById('summary-profit').textContent = fmt(profit);
+      document.getElementById('mrr-header').textContent = fmt(monthlyIncome) + ' MRR';
+      
+      // Chart
+      const ctx = document.getElementById('chart-income-expenses').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Monthly'],
+          datasets: [
+            { label: 'Income', data: [monthlyIncome], backgroundColor: '#45C9B0' },
+            { label: 'Expenses', data: [monthlyExpenses], backgroundColor: '#E8615A' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { labels: { color: '#8A8F9C', font: { size: 12 } } } },
+          scales: {
+            y: { ticks: { color: '#8A8F9C' }, grid: { color: '#2E323F' } },
+            x: { ticks: { color: '#8A8F9C' }, grid: { color: '#2E323F' } }
+          }
+        }
+      });
+      
+      // Expenses
       const sorted = [...state.expenses].sort((a, b) => b.date.localeCompare(a.date));
       document.getElementById('recent-list').innerHTML = sorted.slice(0, 6).map(e => 
-        `<div class="expense-row"><span>${e.vendor}</span><span class="amount">-${fmt(e.amount)}</span></div>`
+        `<div class="expense-row"><div><span>${e.vendor}</span><span class="small-text" style="margin-left: 8px;">${e.date}</span></div><span class="amount">-${fmt(e.amount)}</span></div>`
       ).join('') || '<div class="small-text">No expenses</div>';
       
       document.getElementById('expense-list').innerHTML = sorted.map(e => 
         `<div class="expense-row" style="justify-content: space-between;">
-          <div><div>${e.vendor}</div><div class="small-text">${e.date} · ${e.category}</div></div>
+          <div><div>${e.vendor}</div><div class="small-text">${e.date} · ${e.category}${e.recurring ? ` · ${e.frequency}` : ''}</div></div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="amount">-${fmt(e.amount)}</span>
             <button onclick="state.expenses = state.expenses.filter(x => x.id !== ${e.id}); save();" style="background: none; border: none; color: #8A8F9C; cursor: pointer; padding: 0; font-weight: normal;">×</button>
@@ -200,10 +326,20 @@
         </div>`
       ).join('') || '<div class="small-text">No expenses</div>';
       
-      document.getElementById('cust-list').innerHTML = state.customers.map(c => 
-        `<div class="card"><div style="display: flex; justify-content: space-between;"><strong>${c.name}</strong><button onclick="state.customers = state.customers.filter(x => x.id !== ${c.id}); save();" style="background: none; border: none; color: #8A8F9C; cursor: pointer; padding: 0; font-weight: normal;">×</button></div><div style="font-family: monospace; font-size: 18px; margin: 8px 0;">${fmt(c.mrr)}/mo</div><div class="small-text">Status: ${c.status}</div></div>`
-      ).join('') || '<div class="small-text">No customers</div>';
+      // Customers
+      document.getElementById('cust-list').innerHTML = state.customers.map(c => {
+        const monthly = c.frequency === 'annual' ? c.amount / 12 : c.amount;
+        return `<div class="card">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <strong>${c.name}</strong>
+            <button onclick="state.customers = state.customers.filter(x => x.id !== ${c.id}); save();" style="background: none; border: none; color: #8A8F9C; cursor: pointer; padding: 0; font-weight: normal;">×</button>
+          </div>
+          <div style="font-family: monospace; font-size: 18px; margin-bottom: 8px;">${fmt(monthly)}/mo</div>
+          <div class="small-text">Frequency: ${c.frequency} · Status: ${c.status}</div>
+        </div>`;
+      }).join('') || '<div class="small-text">No customers</div>';
       
+      // Tasks
       const tasks = { backlog: state.tasks.filter(t => t.status === 'backlog'), progress: state.tasks.filter(t => t.status === 'progress'), done: state.tasks.filter(t => t.status === 'done') };
       document.getElementById('count-backlog').textContent = tasks.backlog.length;
       document.getElementById('count-progress').textContent = tasks.progress.length;
@@ -230,6 +366,9 @@
       render();
     }
 
+    // Set default date
+    document.getElementById('expense-date-input').value = new Date().toISOString().split('T')[0];
+    
     render();
   </script>
 </body>
