@@ -2,280 +2,235 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bootstrap HQ</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #12141B; font-family: system-ui, -apple-system, sans-serif; color: #ECEDF1; }
-    :root { --bg: #12141B; --surface: #1B1E28; --surface-2: #232733; --border: #2E323F; --text: #ECEDF1; --text-dim: #8A8F9C; --amber: #E8A33D; --teal: #45C9B0; --red: #E8615A; }
-    input, select { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 13px; outline: none; }
-    input[type=checkbox] { width: auto; }
-    button { cursor: pointer; font-family: inherit; }
-    .container { display: flex; height: 100vh; background: var(--bg); }
-    .sidebar { width: 200px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px; }
-    .main { flex: 1; overflow-y: auto; padding: 28px; }
-    .nav-btn { width: 100%; text-align: left; padding: 10px; border: none; background: transparent; color: var(--text-dim); margin-bottom: 6px; border-radius: 6px; cursor: pointer; }
-    .nav-btn.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    html, body { height: 100%; }
+    body { background: #12141B; color: #ECEDF1; font-family: system-ui, -apple-system, sans-serif; }
+    .app { display: flex; height: 100vh; }
+    .sidebar { width: 200px; background: #1B1E28; border-right: 1px solid #2E323F; padding: 20px; overflow-y: auto; }
+    .main { flex: 1; padding: 28px; overflow-y: auto; }
+    .title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+    .nav-btn { width: 100%; text-align: left; padding: 10px; border: none; background: transparent; color: #8A8F9C; margin-bottom: 6px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .nav-btn.active { background: #232733; color: #ECEDF1; font-weight: 600; }
+    .hidden { display: none !important; }
+    .card { background: #1B1E28; border: 1px solid #2E323F; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-value { font-size: 20px; font-weight: 700; font-family: monospace; margin-top: 6px; }
+    .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    input, select { background: #232733; border: 1px solid #2E323F; color: #ECEDF1; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: inherit; }
+    button { background: #E8A33D; color: #12141B; border: none; border-radius: 6px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 13px; }
+    .expense-row { display: flex; justify-content: space-between; padding: 10px 12px; background: #232733; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+    .amount { color: #E8615A; font-family: monospace; }
+    .cust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
     .section-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
-    .btn-primary { background: var(--amber); color: #12141B; border: none; border-radius: 6px; padding: 9px 14px; font-weight: 600; margin-bottom: 20px; }
-    .expense-item { display: flex; justify-content: space-between; padding: 10px 12px; background: var(--surface); border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
-    .expense-amount { color: var(--red); font-family: monospace; }
+    .small-text { font-size: 12px; color: #8A8F9C; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="app">
     <div class="sidebar">
-      <div style="margin-bottom: 20px;">
-        <input id="businessName" value="Bootstrap HQ" style="border: none; background: transparent; color: var(--text); font-size: 16px; font-weight: 700; width: 100%; padding: 0;">
-        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 8px;">Operator console</div>
-      </div>
-      <button class="nav-btn active" onclick="switchTab('dashboard')">Dashboard</button>
-      <button class="nav-btn" onclick="switchTab('finances')">Finances</button>
-      <button class="nav-btn" onclick="switchTab('customers')">Customers</button>
-      <button class="nav-btn" onclick="switchTab('roadmap')">Roadmap</button>
+      <div class="title">Bootstrap HQ</div>
+      <button class="nav-btn active" onclick="showTab('dashboard', this)">Dashboard</button>
+      <button class="nav-btn" onclick="showTab('finances', this)">Finances</button>
+      <button class="nav-btn" onclick="showTab('customers', this)">Customers</button>
+      <button class="nav-btn" onclick="showTab('roadmap', this)">Roadmap</button>
     </div>
 
     <div class="main">
-      <!-- DASHBOARD TAB -->
-      <div id="dashboard-tab" style="display: block;">
+      <!-- Dashboard -->
+      <div id="tab-dashboard">
         <div class="section-title">Dashboard</div>
-        <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">Your business, at a glance.</p>
-        
-        <div class="grid">
-          <div class="card">
-            <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">Cash on hand</div>
-            <div id="cash-display" style="font-size: 20px; font-weight: 700; font-family: monospace;">$0</div>
-          </div>
-          <div class="card">
-            <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">MRR</div>
-            <div id="mrr-display" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--teal);">$0</div>
-          </div>
-          <div class="card">
-            <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">Monthly burn</div>
-            <div id="burn-display" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--red);">$0</div>
-          </div>
-          <div class="card">
-            <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">Runway</div>
-            <div id="runway-display" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--amber);">∞ mo</div>
-          </div>
+        <div class="stat-grid">
+          <div class="card"><div class="small-text">Cash on hand</div><div class="stat-value" id="stat-cash">$0</div></div>
+          <div class="card"><div class="small-text">MRR</div><div class="stat-value" id="stat-mrr" style="color: #45C9B0;">$0</div></div>
+          <div class="card"><div class="small-text">Monthly burn</div><div class="stat-value" id="stat-burn" style="color: #E8615A;">$0</div></div>
+          <div class="card"><div class="small-text">Runway</div><div class="stat-value" id="stat-runway" style="color: #E8A33D;">∞</div></div>
         </div>
-
-        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px;">
-          <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">Recent expenses</div>
-          <div id="recent-expenses" style="display: flex; flex-direction: column; gap: 6px;">
-            <div style="color: var(--text-dim); text-align: center; padding: 20px;">No expenses yet. Add one from the Finances tab.</div>
-          </div>
-        </div>
+        <div class="card"><div style="font-weight: 600; margin-bottom: 12px;">Recent expenses</div><div id="recent-list"></div></div>
       </div>
 
-      <!-- FINANCES TAB -->
-      <div id="finances-tab" style="display: none;">
+      <!-- Finances -->
+      <div id="tab-finances" class="hidden">
         <div class="section-title">Finances</div>
-        <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">Track spend and know your burn rate.</p>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 20px;">
-          <input id="cashOnHand" type="number" placeholder="Cash on hand" value="0" onchange="saveData()">
-          <input id="vendor" type="text" placeholder="Vendor">
-          <input id="amount" type="number" placeholder="Amount">
-          <input id="category" type="text" placeholder="Category">
+        <div class="form-group">
+          <input type="number" id="cash-input" placeholder="Cash on hand" onchange="updateStats()">
+          <input type="text" id="vendor-input" placeholder="Vendor">
+          <input type="number" id="amount-input" placeholder="Amount">
+          <input type="text" id="category-input" placeholder="Category">
         </div>
-        
-        <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 13px; color: var(--text-dim);">
-          <input id="recurring" type="checkbox"> Recurring monthly
+        <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; color: #8A8F9C; font-size: 13px;">
+          <input type="checkbox" id="recurring-input"> Recurring monthly
         </label>
-        
-        <button class="btn-primary" onclick="addExpense()">+ Add expense</button>
-
-        <div style="font-size: 14px; font-weight: 700; margin-top: 24px; margin-bottom: 12px;">All expenses</div>
-        <div id="all-expenses" style="display: flex; flex-direction: column; gap: 1px;">
-          <div style="color: var(--text-dim); text-align: center; padding: 20px;">No expenses yet.</div>
-        </div>
+        <button onclick="addExpense()">+ Add expense</button>
+        <div style="margin-top: 24px; font-weight: 600; margin-bottom: 12px;">All expenses</div>
+        <div id="expense-list"></div>
       </div>
 
-      <!-- CUSTOMERS TAB -->
-      <div id="customers-tab" style="display: none;">
+      <!-- Customers -->
+      <div id="tab-customers" class="hidden">
         <div class="section-title">Customers</div>
-        <div id="mrr-header" style="font-family: monospace; font-size: 22px; color: var(--teal); font-weight: 700; margin-bottom: 20px;">$0 <span style="font-size: 12px; color: var(--text-dim); font-family: inherit;">MRR</span></div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 20px;">
-          <input id="custName" type="text" placeholder="Customer name">
-          <input id="custMrr" type="number" placeholder="MRR">
-          <select id="custStatus"><option value="active">Active</option><option value="trial">Trial</option><option value="churned">Churned</option></select>
+        <div id="mrr-header" style="font-family: monospace; font-size: 22px; color: #45C9B0; font-weight: 700; margin-bottom: 20px;">$0 MRR</div>
+        <div class="form-group">
+          <input type="text" id="cust-name-input" placeholder="Customer name">
+          <input type="number" id="cust-mrr-input" placeholder="MRR">
+          <select id="cust-status-input"><option value="active">Active</option><option value="trial">Trial</option><option value="churned">Churned</option></select>
         </div>
-        
-        <button class="btn-primary" onclick="addCustomer()">+ Add customer</button>
-
-        <div id="customers-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
-          <div style="color: var(--text-dim); text-align: center; padding: 20px; grid-column: 1/-1;">No customers yet.</div>
-        </div>
+        <button onclick="addCustomer()">+ Add customer</button>
+        <div class="cust-grid" id="cust-list" style="margin-top: 20px;"></div>
       </div>
 
-      <!-- ROADMAP TAB -->
-      <div id="roadmap-tab" style="display: none;">
+      <!-- Roadmap -->
+      <div id="tab-roadmap" class="hidden">
         <div class="section-title">Roadmap</div>
-        <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">What's next across every venture.</p>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 20px;">
-          <input id="taskTitle" type="text" placeholder="Task title">
-          <input id="taskDue" type="date">
+        <div class="form-group">
+          <input type="text" id="task-title-input" placeholder="Task title">
+          <input type="date" id="task-due-input">
         </div>
-        
-        <button class="btn-primary" onclick="addTask()">+ Add task</button>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
-          <div>
-            <div style="font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px;">Backlog · <span id="backlog-count">0</span></div>
-            <div id="backlog-tasks" style="display: flex; flex-direction: column; gap: 8px;"></div>
-          </div>
-          <div>
-            <div style="font-size: 11px; font-weight: 600; color: var(--amber); text-transform: uppercase; margin-bottom: 12px;">In progress · <span id="progress-count">0</span></div>
-            <div id="progress-tasks" style="display: flex; flex-direction: column; gap: 8px;"></div>
-          </div>
-          <div>
-            <div style="font-size: 11px; font-weight: 600; color: var(--teal); text-transform: uppercase; margin-bottom: 12px;">Done · <span id="done-count">0</span></div>
-            <div id="done-tasks" style="display: flex; flex-direction: column; gap: 8px;"></div>
-          </div>
+        <button onclick="addTask()">+ Add task</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px;">
+          <div><div class="small-text" style="text-transform: uppercase; font-weight: 600; margin-bottom: 12px;">Backlog · <span id="count-backlog">0</span></div><div id="list-backlog"></div></div>
+          <div><div class="small-text" style="text-transform: uppercase; font-weight: 600; margin-bottom: 12px; color: #E8A33D;">In progress · <span id="count-progress">0</span></div><div id="list-progress"></div></div>
+          <div><div class="small-text" style="text-transform: uppercase; font-weight: 600; margin-bottom: 12px; color: #45C9B0;">Done · <span id="count-done">0</span></div><div id="list-done"></div></div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Data storage
-    const data = {
-      settings: JSON.parse(localStorage.getItem('settings')) || { cashOnHand: 0, businessName: 'Bootstrap HQ' },
-      expenses: JSON.parse(localStorage.getItem('expenses')) || [],
-      customers: JSON.parse(localStorage.getItem('customers')) || [],
-      tasks: JSON.parse(localStorage.getItem('tasks')) || []
+    let state = {
+      settings: JSON.parse(localStorage.getItem('hq-settings')) || { cash: 0 },
+      expenses: JSON.parse(localStorage.getItem('hq-expenses')) || [],
+      customers: JSON.parse(localStorage.getItem('hq-customers')) || [],
+      tasks: JSON.parse(localStorage.getItem('hq-tasks')) || []
     };
 
-    function saveData() {
-      localStorage.setItem('settings', JSON.stringify(data.settings));
-      localStorage.setItem('expenses', JSON.stringify(data.expenses));
-      localStorage.setItem('customers', JSON.stringify(data.customers));
-      localStorage.setItem('tasks', JSON.stringify(data.tasks));
-      updateDisplay();
-    }
-
-    function switchTab(tab) {
-      document.querySelectorAll('[id$="-tab"]').forEach(el => el.style.display = 'none');
-      document.getElementById(tab + '-tab').style.display = 'block';
-      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-    }
-
-    function fmtMoney(n) {
-      return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    function save() {
+      localStorage.setItem('hq-settings', JSON.stringify(state.settings));
+      localStorage.setItem('hq-expenses', JSON.stringify(state.expenses));
+      localStorage.setItem('hq-customers', JSON.stringify(state.customers));
+      localStorage.setItem('hq-tasks', JSON.stringify(state.tasks));
+      render();
     }
 
     function addExpense() {
-      const vendor = document.getElementById('vendor').value;
-      const amount = parseFloat(document.getElementById('amount').value);
-      if (!vendor || !amount) return;
+      const vendor = document.getElementById('vendor-input').value.trim();
+      const amount = parseFloat(document.getElementById('amount-input').value);
+      if (!vendor || !amount) { alert('Vendor and amount required'); return; }
       
-      data.expenses.push({
-        id: Math.random().toString(36).slice(2),
-        date: new Date().toISOString().slice(0, 10),
+      state.expenses.push({
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
         vendor,
         amount,
-        category: document.getElementById('category').value || 'Uncategorized',
-        recurring: document.getElementById('recurring').checked
+        category: document.getElementById('category-input').value || 'Other',
+        recurring: document.getElementById('recurring-input').checked
       });
       
-      document.getElementById('vendor').value = '';
-      document.getElementById('amount').value = '';
-      document.getElementById('category').value = '';
-      document.getElementById('recurring').checked = false;
+      document.getElementById('vendor-input').value = '';
+      document.getElementById('amount-input').value = '';
+      document.getElementById('category-input').value = '';
+      document.getElementById('recurring-input').checked = false;
       
-      saveData();
+      save();
     }
 
     function addCustomer() {
-      const name = document.getElementById('custName').value;
-      const mrr = parseFloat(document.getElementById('custMrr').value);
-      if (!name) return;
+      const name = document.getElementById('cust-name-input').value.trim();
+      const mrr = parseFloat(document.getElementById('cust-mrr-input').value);
+      if (!name) { alert('Name required'); return; }
       
-      data.customers.push({
-        id: Math.random().toString(36).slice(2),
+      state.customers.push({
+        id: Date.now(),
         name,
         mrr: mrr || 0,
-        status: document.getElementById('custStatus').value
+        status: document.getElementById('cust-status-input').value
       });
       
-      document.getElementById('custName').value = '';
-      document.getElementById('custMrr').value = '';
-      
-      saveData();
+      document.getElementById('cust-name-input').value = '';
+      document.getElementById('cust-mrr-input').value = '';
+      save();
     }
 
     function addTask() {
-      const title = document.getElementById('taskTitle').value;
-      if (!title) return;
+      const title = document.getElementById('task-title-input').value.trim();
+      if (!title) { alert('Title required'); return; }
       
-      data.tasks.push({
-        id: Math.random().toString(36).slice(2),
+      state.tasks.push({
+        id: Date.now(),
         title,
-        dueDate: document.getElementById('taskDue').value,
+        due: document.getElementById('task-due-input').value,
         status: 'backlog'
       });
       
-      document.getElementById('taskTitle').value = '';
-      document.getElementById('taskDue').value = '';
-      
-      saveData();
+      document.getElementById('task-title-input').value = '';
+      document.getElementById('task-due-input').value = '';
+      save();
     }
 
-    function updateDisplay() {
-      // Update business name
-      data.settings.cashOnHand = parseFloat(document.getElementById('cashOnHand').value) || 0;
-      document.getElementById('businessName').value = data.settings.businessName;
+    function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+
+    function render() {
+      state.settings.cash = parseFloat(document.getElementById('cash-input').value) || 0;
       
-      // Dashboard stats
-      const activeMRR = data.customers.filter(c => c.status === 'active').reduce((s, c) => s + (c.mrr || 0), 0);
-      const monthlyBurn = data.expenses.filter(e => e.recurring).reduce((s, e) => s + (e.amount || 0), 0);
-      const netBurn = monthlyBurn - activeMRR;
-      const runway = netBurn > 0 ? (data.settings.cashOnHand / netBurn).toFixed(1) : '∞';
+      const mrr = state.customers.filter(c => c.status === 'active').reduce((s, c) => s + c.mrr, 0);
+      const burn = state.expenses.filter(e => e.recurring).reduce((s, e) => s + e.amount, 0);
+      const net = burn - mrr;
+      const runway = net > 0 ? (state.settings.cash / net).toFixed(1) : '∞';
       
-      document.getElementById('cash-display').textContent = fmtMoney(data.settings.cashOnHand);
-      document.getElementById('mrr-display').textContent = fmtMoney(activeMRR);
-      document.getElementById('burn-display').textContent = fmtMoney(monthlyBurn);
-      document.getElementById('runway-display').textContent = runway + ' mo';
-      document.getElementById('mrr-header').innerHTML = fmtMoney(activeMRR) + ' <span style="font-size: 12px; color: var(--text-dim); font-family: inherit;">MRR</span>';
+      document.getElementById('stat-cash').textContent = fmt(state.settings.cash);
+      document.getElementById('stat-mrr').textContent = fmt(mrr);
+      document.getElementById('stat-burn').textContent = fmt(burn);
+      document.getElementById('stat-runway').textContent = runway + ' mo';
+      document.getElementById('mrr-header').textContent = fmt(mrr) + ' MRR';
       
-      // Recent expenses
-      const recent = data.expenses.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
-      document.getElementById('recent-expenses').innerHTML = recent.length === 0 
-        ? '<div style="color: var(--text-dim); text-align: center; padding: 20px;">No expenses yet.</div>'
-        : recent.map(e => `<div class="expense-item"><div>${e.vendor}</div><div class="expense-amount">-${fmtMoney(e.amount)}</div></div>`).join('');
+      const sorted = [...state.expenses].sort((a, b) => b.date.localeCompare(a.date));
+      document.getElementById('recent-list').innerHTML = sorted.slice(0, 6).map(e => 
+        `<div class="expense-row"><span>${e.vendor}</span><span class="amount">-${fmt(e.amount)}</span></div>`
+      ).join('') || '<div class="small-text">No expenses</div>';
       
-      // All expenses
-      const sorted = [...data.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      document.getElementById('all-expenses').innerHTML = sorted.length === 0
-        ? '<div style="color: var(--text-dim); text-align: center; padding: 20px;">No expenses yet.</div>'
-        : sorted.map(e => `<div class="expense-item"><div><div style="font-size: 13px; font-weight: 500;">${e.vendor}</div><div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">${e.date} · ${e.category}</div></div><div class="expense-amount" onclick="data.expenses = data.expenses.filter(x => x.id !== '${e.id}'); saveData();" style="cursor: pointer;">-${fmtMoney(e.amount)}</div></div>`).join('');
+      document.getElementById('expense-list').innerHTML = sorted.map(e => 
+        `<div class="expense-row" style="justify-content: space-between;">
+          <div><div>${e.vendor}</div><div class="small-text">${e.date} · ${e.category}</div></div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="amount">-${fmt(e.amount)}</span>
+            <button onclick="state.expenses = state.expenses.filter(x => x.id !== ${e.id}); save();" style="background: none; border: none; color: #8A8F9C; cursor: pointer; padding: 0; font-weight: normal;">×</button>
+          </div>
+        </div>`
+      ).join('') || '<div class="small-text">No expenses</div>';
       
-      // Customers
-      document.getElementById('customers-list').innerHTML = data.customers.length === 0
-        ? '<div style="color: var(--text-dim); text-align: center; padding: 20px; grid-column: 1/-1;">No customers yet.</div>'
-        : data.customers.map(c => `<div class="card"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><strong>${c.name}</strong><span style="cursor: pointer; color: var(--text-dim);" onclick="data.customers = data.customers.filter(x => x.id !== '${c.id}'); saveData();">×</span></div><div style="font-family: monospace; font-size: 18px; margin-bottom: 8px;">${fmtMoney(c.mrr)}/mo</div><div style="font-size: 11px; color: var(--text-dim);">Status: ${c.status}</div></div>`).join('');
+      document.getElementById('cust-list').innerHTML = state.customers.map(c => 
+        `<div class="card"><div style="display: flex; justify-content: space-between;"><strong>${c.name}</strong><button onclick="state.customers = state.customers.filter(x => x.id !== ${c.id}); save();" style="background: none; border: none; color: #8A8F9C; cursor: pointer; padding: 0; font-weight: normal;">×</button></div><div style="font-family: monospace; font-size: 18px; margin: 8px 0;">${fmt(c.mrr)}/mo</div><div class="small-text">Status: ${c.status}</div></div>`
+      ).join('') || '<div class="small-text">No customers</div>';
       
-      // Tasks
-      const backlog = data.tasks.filter(t => t.status === 'backlog');
-      const progress = data.tasks.filter(t => t.status === 'progress');
-      const done = data.tasks.filter(t => t.status === 'done');
+      const tasks = { backlog: state.tasks.filter(t => t.status === 'backlog'), progress: state.tasks.filter(t => t.status === 'progress'), done: state.tasks.filter(t => t.status === 'done') };
+      document.getElementById('count-backlog').textContent = tasks.backlog.length;
+      document.getElementById('count-progress').textContent = tasks.progress.length;
+      document.getElementById('count-done').textContent = tasks.done.length;
       
-      document.getElementById('backlog-count').textContent = backlog.length;
-      document.getElementById('progress-count').textContent = progress.length;
-      document.getElementById('done-count').textContent = done.length;
-      
-      document.getElementById('backlog-tasks').innerHTML = backlog.map(t => `<div class="card" style="padding: 12px;"><div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">${t.title}</div><div style="font-size: 11px; color: var(--text-dim);">${t.dueDate || 'No due date'}</div><div style="display: flex; gap: 6px; margin-top: 8px;"><button onclick="data.tasks.find(x => x.id === '${t.id}').status = 'progress'; saveData();" style="background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">→</button></div></div>`).join('');
-      document.getElementById('progress-tasks').innerHTML = progress.map(t => `<div class="card" style="padding: 12px;"><div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">${t.title}</div><div style="font-size: 11px; color: var(--text-dim);">${t.dueDate || 'No due date'}</div><div style="display: flex; gap: 6px; margin-top: 8px;"><button onclick="data.tasks.find(x => x.id === '${t.id}').status = 'backlog'; saveData();" style="background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">←</button><button onclick="data.tasks.find(x => x.id === '${t.id}').status = 'done'; saveData();" style="background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">→</button></div></div>`).join('');
-      document.getElementById('done-tasks').innerHTML = done.map(t => `<div class="card" style="padding: 12px;"><div style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">${t.title}</div><div style="font-size: 11px; color: var(--text-dim);">${t.dueDate || 'No due date'}</div><div style="display: flex; gap: 6px; margin-top: 8px;"><button onclick="data.tasks.find(x => x.id === '${t.id}').status = 'progress'; saveData();" style="background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">←</button></div></div>`).join('');
+      ['backlog', 'progress', 'done'].forEach(st => {
+        document.getElementById(`list-${st}`).innerHTML = tasks[st].map(t => 
+          `<div class="card" style="padding: 10px;"><div style="font-weight: 500;">${t.title}</div><div class="small-text">${t.due || 'No due date'}</div><div style="display: flex; gap: 4px; margin-top: 8px;">
+            ${st !== 'backlog' ? `<button onclick="state.tasks.find(x => x.id === ${t.id}).status = 'backlog'; save();" style="flex: 1; padding: 4px;">←</button>` : ''}
+            ${st !== 'done' ? `<button onclick="state.tasks.find(x => x.id === ${t.id}).status = '${st === 'backlog' ? 'progress' : 'done'}'; save();" style="flex: 1; padding: 4px;">→</button>` : ''}
+          </div></div>`
+        ).join('');
+      });
     }
 
-    updateDisplay();
+    function showTab(tab, btn) {
+      document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById('tab-' + tab).classList.remove('hidden');
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function updateStats() {
+      render();
+    }
+
+    render();
   </script>
 </body>
 </html>
