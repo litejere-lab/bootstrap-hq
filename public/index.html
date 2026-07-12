@@ -30,15 +30,25 @@
   <script>
     const { useState, useEffect, useMemo } = React;
 
-    // storage helpers
+    // localStorage helpers (works on regular websites)
     const KEYS = { settings:'settings', expenses:'expenses', customers:'customers', tasks:'tasks' };
 
-    async function loadKey(key, fallback) {
-      try { const res = await window.storage.get(key,false); return res ? JSON.parse(res.value) : fallback; }
-      catch(e) { return fallback; }
+    function loadKey(key, fallback) {
+      try { 
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : fallback;
+      }
+      catch(e) { 
+        return fallback; 
+      }
     }
-    async function saveKey(key, value) {
-      try { await window.storage.set(key, JSON.stringify(value), false); } catch(e) {}
+
+    function saveKey(key, value) {
+      try { 
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch(e) {
+        console.error('localStorage save failed', key, e);
+      }
     }
 
     const uid = () => Math.random().toString(36).slice(2,10);
@@ -198,177 +208,4 @@
     }
 
     // Customers
-    function Customers({customers, setCustomers, ventures, mrr}) {
-      const blank = {name:'',mrr:'',status:'active',venture:'',startDate:new Date().toISOString().slice(0,10)};
-      const [form, setForm] = useState(blank);
-      const addCust = () => { if(!form.name) return; setCustomers(l=>[...l,{...form,id:uid(),mrr:Number(form.mrr||0)}]); setForm(blank); };
-      const statusColor = {active:'var(--teal)',trial:'var(--amber)',churned:'var(--red)'};
-
-      return React.createElement('div', null,
-        React.createElement('h1', {style:h1}, 'Customers'),
-        React.createElement('p', {style:{color:'var(--text-dim)',fontSize:13,marginTop:4,marginBottom:4}}, 'Every subscriber and where your MRR comes from.'),
-        React.createElement('div', {style:{fontFamily:"'JetBrains Mono',monospace",fontSize:22,color:'var(--teal)',fontWeight:700,marginBottom:20}},
-          fmtMoney(mrr), React.createElement('span',{style:{fontSize:12,color:'var(--text-dim)',fontFamily:'inherit',fontWeight:400,marginLeft:4}}, 'MRR')
-        ),
-        React.createElement('div', {style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:10,maxWidth:680}},
-          React.createElement('input',{style:inp,placeholder:'Customer name',value:form.name,onChange:e=>setForm(f=>({...f,name:e.target.value}))}),
-          React.createElement('input',{style:inp,type:'number',placeholder:'MRR ($)',value:form.mrr,onChange:e=>setForm(f=>({...f,mrr:e.target.value}))}),
-          React.createElement('select',{style:inp,value:form.status,onChange:e=>setForm(f=>({...f,status:e.target.value}))},
-            React.createElement('option',{value:'active'},'Active'),
-            React.createElement('option',{value:'trial'},'Trial'),
-            React.createElement('option',{value:'churned'},'Churned')
-          ),
-          React.createElement('input',{style:inp,placeholder:'Venture',list:'cv-list',value:form.venture,onChange:e=>setForm(f=>({...f,venture:e.target.value}))}),
-          React.createElement('datalist',{id:'cv-list'},ventures.map(v=>React.createElement('option',{key:v,value:v}))),
-          React.createElement('input',{style:inp,type:'date',value:form.startDate,onChange:e=>setForm(f=>({...f,startDate:e.target.value}))})
-        ),
-        React.createElement('button',{style:{...btn,marginBottom:24},onClick:addCust},'+ Add customer'),
-        customers.length===0 ? React.createElement(EmptyState,{text:'No customers yet. Add your first subscriber above.'}) :
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}},
-          customers.map(c=>React.createElement('div',{key:c.id,style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:14}},
-            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:8}},
-              React.createElement('div',{style:{fontWeight:600,fontSize:14}},c.name),
-              React.createElement('button',{onClick:()=>setCustomers(l=>l.filter(x=>x.id!==c.id)),style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',padding:2,fontSize:16}},'×')
-            ),
-            React.createElement('div',{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:18,marginBottom:8}}, fmtMoney(c.mrr), React.createElement('span',{style:{fontSize:11,color:'var(--text-dim)',fontFamily:'inherit'}},'/mo')),
-            React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:6}},
-              React.createElement('select',{value:c.status,onChange:e=>setCustomers(l=>l.map(x=>x.id===c.id?{...x,status:e.target.value}:x)),style:{...inp,width:'auto',padding:'4px 8px',fontSize:12,color:statusColor[c.status]}},
-                React.createElement('option',{value:'active'},'Active'),
-                React.createElement('option',{value:'trial'},'Trial'),
-                React.createElement('option',{value:'churned'},'Churned')
-              ),
-              c.venture && React.createElement(VentureTag,{name:c.venture,list:ventures})
-            ),
-            React.createElement('div',{style:{fontSize:11,color:'var(--text-dim)'}}, 'Since ', c.startDate)
-          ))
-        )
-      );
-    }
-
-    // Roadmap
-    function Roadmap({tasks, setTasks, ventures}) {
-      const blank = {title:'',venture:'',dueDate:'',status:'backlog'};
-      const [form, setForm] = useState(blank);
-      const columns = [{id:'backlog',label:'Backlog'},{id:'progress',label:'In progress'},{id:'done',label:'Done'}];
-      const addTask = () => { if(!form.title) return; setTasks(l=>[...l,{...form,id:uid()}]); setForm(blank); };
-      const move = (id, dir) => { const order=['backlog','progress','done']; setTasks(l=>l.map(t=>{ if(t.id!==id) return t; const i=order.indexOf(t.status); return {...t,status:order[Math.max(0,Math.min(2,i+dir))]}; })); };
-
-      return React.createElement('div', null,
-        React.createElement('h1',{style:h1},'Roadmap'),
-        React.createElement('p',{style:{color:'var(--text-dim)',fontSize:13,marginTop:4,marginBottom:20}},'What\'s next across every venture.'),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:10,maxWidth:640}},
-          React.createElement('input',{style:inp,placeholder:'Task title',value:form.title,onChange:e=>setForm(f=>({...f,title:e.target.value}))}),
-          React.createElement('input',{style:inp,placeholder:'Venture',list:'tv-list',value:form.venture,onChange:e=>setForm(f=>({...f,venture:e.target.value}))}),
-          React.createElement('datalist',{id:'tv-list'},ventures.map(v=>React.createElement('option',{key:v,value:v}))),
-          React.createElement('input',{style:inp,type:'date',value:form.dueDate,onChange:e=>setForm(f=>({...f,dueDate:e.target.value}))})
-        ),
-        React.createElement('button',{style:{...btn,marginBottom:24},onClick:addTask},'+ Add task'),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}},
-          columns.map(col=>React.createElement('div',{key:col.id},
-            React.createElement('div',{style:{fontSize:11,fontWeight:600,color:'#8A8F9C',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}},
-              col.label, ' · ', tasks.filter(t=>t.status===col.id).length
-            ),
-            React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
-              tasks.filter(t=>t.status===col.id).map(t=>React.createElement('div',{key:t.id,style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:12}},
-                React.createElement('div',{style:{display:'flex',justifyContent:'space-between',gap:6,marginBottom:6}},
-                  React.createElement('div',{style:{fontSize:13,fontWeight:500,lineHeight:1.4}},t.title),
-                  React.createElement('button',{onClick:()=>setTasks(l=>l.filter(x=>x.id!==t.id)),style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',padding:2,flexShrink:0,fontSize:16}},'×')
-                ),
-                React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:8}},
-                  t.venture && React.createElement(VentureTag,{name:t.venture,list:ventures}),
-                  t.dueDate && React.createElement('span',{style:{fontSize:11,color:'var(--text-dim)'}},t.dueDate)
-                ),
-                React.createElement('div',{style:{display:'flex',gap:6}},
-                  React.createElement('button',{disabled:col.id==='backlog',onClick:()=>move(t.id,-1),style:{...btnG,padding:'4px 10px',fontSize:12}}, '←'),
-                  React.createElement('button',{disabled:col.id==='done',onClick:()=>move(t.id,1),style:{...btnG,padding:'4px 10px',fontSize:12}}, '→')
-                )
-              )),
-              tasks.filter(t=>t.status===col.id).length===0 && React.createElement('div',{style:{fontSize:12,color:'var(--text-dim)',padding:'14px',textAlign:'center',border:'1px dashed var(--border)',borderRadius:8}},'Empty')
-            )
-          ))
-        )
-      );
-    }
-
-    // App
-    function App() {
-      const [loading, setLoading] = useState(true);
-      const [tab, setTab] = useState('dashboard');
-      const [settings, setSettings] = useState({cashOnHand:0,businessName:'Bootstrap HQ'});
-      const [expenses, setExpenses] = useState([]);
-      const [customers, setCustomers] = useState([]);
-      const [tasks, setTasks] = useState([]);
-
-      useEffect(()=>{
-        (async()=>{
-          const [s,e,c,t] = await Promise.all([
-            loadKey(KEYS.settings,{cashOnHand:0,businessName:'Bootstrap HQ'}),
-            loadKey(KEYS.expenses,[]),
-            loadKey(KEYS.customers,[]),
-            loadKey(KEYS.tasks,[]),
-          ]);
-          setSettings(s); setExpenses(e); setCustomers(c); setTasks(t);
-          setLoading(false);
-        })();
-      },[]);
-
-      useEffect(()=>{ if(!loading) saveKey(KEYS.settings,settings); },[settings,loading]);
-      useEffect(()=>{ if(!loading) saveKey(KEYS.expenses,expenses); },[expenses,loading]);
-      useEffect(()=>{ if(!loading) saveKey(KEYS.customers,customers); },[customers,loading]);
-      useEffect(()=>{ if(!loading) saveKey(KEYS.tasks,tasks); },[tasks,loading]);
-
-      const ventures = useMemo(()=>{
-        const s=new Set();
-        expenses.forEach(e=>e.venture&&s.add(e.venture));
-        customers.forEach(c=>c.venture&&s.add(c.venture));
-        tasks.forEach(t=>t.venture&&s.add(t.venture));
-        return Array.from(s);
-      },[expenses,customers,tasks]);
-
-      const mrr = useMemo(()=>customers.filter(c=>c.status==='active').reduce((s,c)=>s+Number(c.mrr||0),0),[customers]);
-      const monthlyBurn = useMemo(()=>{
-        const rec=expenses.filter(e=>e.recurring).reduce((s,e)=>s+Number(e.amount||0),0);
-        const ot=expenses.filter(e=>!e.recurring&&monthKey(e.date)===thisMonth()).reduce((s,e)=>s+Number(e.amount||0),0);
-        return rec+ot;
-      },[expenses]);
-      const netBurn = monthlyBurn - mrr;
-      const runwayMonths = netBurn>0 ? Number(settings.cashOnHand||0)/netBurn : Infinity;
-
-      if(loading) return React.createElement('div',{style:{padding:40,color:'var(--text-dim)',fontFamily:'inherit',textAlign:'center'}},'Loading…');
-
-      const navItems = [
-        {id:'dashboard',label:'Dashboard'},
-        {id:'finances',label:'Finances'},
-        {id:'customers',label:'Customers'},
-        {id:'roadmap',label:'Roadmap'},
-      ];
-
-      return React.createElement('div', {style:{background:'var(--bg)',minHeight:'100vh',display:'flex',borderRadius:12,overflow:'hidden',border:'1px solid var(--border)',color:'var(--text)',fontFamily:'inherit'}},
-        // Sidebar
-        React.createElement('div',{style:{width:200,background:'var(--surface)',borderRight:'1px solid var(--border)',padding:'24px 14px',flexShrink:0}},
-          React.createElement('input',{value:settings.businessName,onChange:e=>setSettings(s=>({...s,businessName:e.target.value})),style:{background:'transparent',border:'none',color:'var(--text)',fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,fontSize:16,width:'100%',padding:0,outline:'none',marginBottom:4}}),
-          React.createElement('div',{style:{fontSize:10,color:'var(--text-dim)',letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:28}},'Operator console'),
-          React.createElement('nav',{style:{display:'flex',flexDirection:'column',gap:2}},
-            navItems.map(item=>{
-              const active = tab===item.id;
-              return React.createElement('button',{key:item.id,onClick:()=>setTab(item.id),style:{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',borderRadius:6,border:'none',background:active?'var(--surface-2)':'transparent',color:active?'var(--text)':'var(--text-dim)',fontFamily:'inherit',fontSize:13,fontWeight:active?600:400,cursor:'pointer',textAlign:'left',width:'100%'}},
-                item.label
-              );
-            })
-          )
-        ),
-        // Main
-        React.createElement('div',{style:{flex:1,padding:'28px 28px',overflowY:'auto',minWidth:0}},
-          tab==='dashboard' && React.createElement(Dashboard,{cashOnHand:Number(settings.cashOnHand||0),mrr,monthlyBurn,runwayMonths,expenses,ventures}),
-          tab==='finances' && React.createElement(Finances,{settings,setSettings,expenses,setExpenses,ventures,monthlyBurn}),
-          tab==='customers' && React.createElement(Customers,{customers,setCustomers,ventures,mrr}),
-          tab==='roadmap' && React.createElement(Roadmap,{tasks,setTasks,ventures})
-        )
-      );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(React.StrictMode, null, React.createElement(App, null)));
-  </script>
-</body>
-</html>
+    function Customers({customers, setCustomers,
